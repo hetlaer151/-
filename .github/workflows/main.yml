@@ -1,4 +1,4 @@
-name: Video_Stream_Fix
+name: Video_Stream_Fix_To_Firebase
 on:
   workflow_dispatch:
     inputs:
@@ -7,30 +7,79 @@ on:
         required: true
 
 jobs:
-  convert:
+  convert_and_upload:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: 🏗️ Setup
-        run: sudo apt-get update && sudo apt-get install -y aria2 ffmpeg
+      - name: 🏗️ Setup Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y aria2 ffmpeg python3-pip
+          pip3 install firebase-admin
 
-      - name: ⬇️ Download
+      - name: ⬇️ Download Video
         run: |
           aria2c --max-connection-per-server=16 --split=16 -o "source_video" "${{ github.event.inputs.video_url }}"
 
       - name: 🎬 Fast Process (Stream Copy)
         run: |
-          # لێرەدا فێڵە سەرەکییەکە ئەوەیە کە -c copy بەکاردێنین
-          # ئەمە وا دەکات ڤیدیۆکە تەنها ڕەوانە بکرێت (Remux) نەک کۆد بکرێتەوە
           ffmpeg -i "source_video" -c copy -movflags +faststart -y "final_video.mp4"
 
-      - name: 🚀 Upload to Release
+      - name: 🚀 Upload to GitHub Release
+        id: upload_release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: "v${{ github.run_number }}"
           files: final_video.mp4
-          body: |
-            Direct Link: https://github.com/${{ github.repository }}/releases/download/v${{ github.run_number }}/final_video.mp4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📋 Push Data to Firebase
+        shell: python
+        env:
+          # لێرە کلیلەکەت بۆ دادەنێم بە شێوەی کاتی بۆ ئەم کارە
+          FB_KEY: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          DATABASE_URL: "https://sarko-43d61-default-rtdb.firebaseio.com/"
+        run: |
+          import firebase_admin
+          from firebase_admin import credentials, db
+          import json
+          import os
+
+          try:
+              # وەرگرتنی کلیلەکە لە سکرێتس
+              key_dict = json.loads(os.environ['FB_KEY'])
+              cred = credentials.Certificate(key_dict)
+              firebase_admin.initialize_app(cred, {'databaseURL': os.environ['DATABASE_URL']})
+              
+              ids_to_update = ["20029", "20030", "20031", "20032", "20033", "20034"]
+              github_repo = os.environ['GITHUB_REPOSITORY']
+              run_number = os.environ['GITHUB_RUN_NUMBER']
+              
+              video_data = {
+                  "badge_text": "FREE",
+                  "description": "چیرۆکی فیلمەکە باس لە کچێکی گەنج دەکات کە لە ڕێگەی ئەپێکی ژوانبەستنەوە کوڕێک دەناسێت کە زۆر سەرنجڕاکێش و بەڕەوشت دەردەکەوێت. هەموو شتێک بە جوانی دەست پێ دەکات، بەڵام کاتێک کچەکە دەچێتە ناو ژیانی تایبەتی کوڕەکەوە، وردە وردە هەست بە شتی سەیر و نائاسایی دەکات. ئەو تێدەگات کە ئەم 'کوڕە باشە' نهێنییەکی ترسناکی هەیە کە پەیوەندی بە ڕابردوویەوە هەیە. فیلمەکە ململانێیەکی دەروونی توندە و بینەر لە ناو گومان و ترسدا دەهێڵێتەوە، تا ئەو ساتەی ڕاستییەکان بە شێوەیەکی شۆککەر ئاشکرا دەبن.",
+                  "genre_id": 6,
+                  "image": "https://raw.githubusercontent.com/Skugiijb546vi/ok/refs/heads/main/good-boy-2025.jpg",
+                  "imdb": 8.5,
+                  "subtitleArabic": "https://raw.githubusercontent.com/Skugiijb546vi/Boolo_ass/refs/heads/main/Good.Boy.2025.1080p.AMZN.WEB-DL.DDP5.1.H.264-English.srt",
+                  "subtitleEnglish": "https://raw.githubusercontent.com/Skugiijb546vi/Boolo_ass/refs/heads/main/Good.Boy.2025.1080p.AMZN.WEB-DL.DDP5.1.H.264-English.srt",
+                  "subtitleKurdish": "https://raw.githubusercontent.com/Skugiijb546vi/kurdil/refs/heads/main/oi.srt",
+                  "title": "good boy _ کوڕە باشەکە",
+                  "translation": "ژێرنووس",
+                  "url": f"https://github.com/{github_repo}/releases/download/v{run_number}/final_video.mp4",
+                  "views": 28,
+                  "year": 2025
+              }
+
+              ref = db.reference('subtitled_movies')
+              for vid in ids_to_update:
+                  data_copy = video_data.copy()
+                  data_copy["id"] = int(vid)
+                  ref.child(vid).set(data_copy)
+                  print(f"✅ ID {vid} پۆست کرا")
+
+          except Exception as e:
+              print(f"❌ هەڵە ڕوویدا: {e}")
+              exit(1)
