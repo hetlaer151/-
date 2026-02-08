@@ -12,21 +12,21 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: 🏗️ Setup
+      - name: 🏗️ Setup Tools
         run: |
           sudo apt-get update
           sudo apt-get install -y aria2 ffmpeg python3-pip
           pip3 install firebase-admin
 
-      - name: ⬇️ Download
+      - name: ⬇️ Download Video
         run: |
           aria2c --max-connection-per-server=16 --split=16 -o "source_video" "${{ github.event.inputs.video_url }}"
 
-      - name: 🎬 Process
+      - name: 🎬 Fast Process (Stream Copy)
         run: |
           ffmpeg -i "source_video" -c copy -movflags +faststart -y "final_video.mp4"
 
-      - name: 🚀 Upload Release
+      - name: 🚀 Upload to GitHub Release
         id: upload_release
         uses: softprops/action-gh-release@v1
         with:
@@ -35,41 +35,49 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 📋 Auto Push to Firebase
+      - name: 📋 Push Data to Firebase
         shell: python
-        env:
-          FB_KEY: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          DATABASE_URL: "https://sarko-43d61-default-rtdb.firebaseio.com/"
         run: |
           import firebase_admin
           from firebase_admin import credentials, db
-          import json
           import os
 
+          # کلیلەکە ڕاستەوخۆ لێرە دادەنێین بۆ ئەوەی هەڵەی Secrets نەمێنێت
+          service_account_info = {
+            "type": "service_account",
+            "project_id": "sarko-43d61",
+            "private_key_id": "215cab13efb2312a90d0c4e6b441d67030110b93",
+            "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCqmvFTmN1GMHM+\ndOV0+8JRhUGfKx1ygJhD3sSOATIhRinIKBwCutoykEDyrc9RcSNjpdpKVL+0nivl\nzHkmixMKo/McnlYvQmjhXG2XD2DeMeiReTNeNzDRknTcqhoimmHGE9XDIK7/cx/Z\n/xqna0tFccZLzv55vhr//IoGFgFPoMwvL1H6qnHT/i2kU/lseCnUgkx5qAwJKMHL\nLRn4+rZYKEavpvA5f8j8KvcO6ZbFmfZ3kwgiqOwEkplYly0Zn6OiDrEII5uXxV9y\nQUtCyoXaxy2JzBU8DV9Yit0CJpRswtUQ54pIPVwmJOsGeG00v0vb8BNgaJZoQk6x\ndtmawJEzAgMBAAECggEAQDHVJLOcb1DDzHiH7qDc2Xfe3VmH1xH0OXWVWCmzBzoz\ndpFBGPXeLLCC/83O+MItos1Bej6xc/Ega3OpEou6OoK+c8JQg6/lbwcsZW7v8Cuv\nay3D2mvB/tmxB2cqNmMI71N/V9DwiEZ1cb2/9cc1p4fMKbJVptGVr0UDWo7lJ2So\neooEyikyGj1UXc3fe6nQa5lnPX7pmHY7WixManIaR/mVSYN2gufGOzEd10dUN5qM\nftCzkz0hAtMYPINQdsUmTvyOn8uMx5+H/qRDVlj+gx4N+xyJcEXvOkJDOroO5RJz\nbdX97gm+CWlZMALDJcnkNra6TTRQtS6ZHO2XpE4aoQKBgQDbWFNDqGWP2SSYCuvw\nGQUFyAT8zxNdnUBmVZpOSjZ6QOjgR3fXbquQhp+cQGkk6Uj5sD+xONRznQmXwZev\ GYdOo0xHZmzFsnDpfv0mu8tkgyZUAAJ2Ah7kxYzhd8rtg6dUUpgTW8yCnWh4+kz8\nHTb9liRZZIBrQmbFfJJuw0qmXQKBgQDHHYI+siELTYgV9hD8umBJp9CJ79z8PtBG\nXEnZ8E7WNYVF5wjE7eTG8PZvsII8TgYeBpjJG2c3Ve123BmPQMYaEfSkDafsFCAE\n2xiarfwhrF/aJiTDWCsG7QCVS9mUZkphDprAVsoAqMIQ3ZRXjGnuLZkOR6mSJ7u+\n5yvgIRt8zwKBgFy9Km83usEoIQW70GeyXGJGYH13HAv/maPq25PwYroryYpSDURj\nwVwY31EUFqCJldYkA7ntej3rjovASV66H3BLMMwbbS/lM0I189i1m9hCbyki2+eD\nHAbD073chUsI1+2aAjxlGsG6xdookfYicAalvXaiPH2dFJC5C7yTC3PtAoGAJcuc\nJXp6e0LESibjIpXeIR0RoJ0/PUJPFov+GLhcvpx6J8KrD3Z4rqqenKTMk9Xbo2dt\nKP9ioEZXRPCSiXaqI9i0r09ISK+pREKycOoFqf6mUypaYBokULQ8IBq9ukWQaMv0\n4/2VanqeG8Vzmwq0MNnG68b+kReps5r94RVnulECgYBZ0P24B0Hy0ia3TBSjZNQE\n8ew1waaZtBYogcKTJTtTmctd3oJ0WZDTfSB8PQvY863U5sM/6saG3VetWGUjPkzy\nFQsoO8pGTB2CIRnMBrjObq5y2A19xsTkX5K8cyyhrN7E0+DwhFRWUKXrMRqPwV4T\nJh9DDNO+qKMhtih6OeWzsA==\n-----END PRIVATE KEY-----\n",
+            "client_email": "firebase-adminsdk-fbsvc@sarko-43d61.iam.gserviceaccount.com",
+            "client_id": "114648868817097483204",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40sarko-43d61.iam.gserviceaccount.com",
+            "universe_domain": "googleapis.com"
+          }
+
           try:
-              key_dict = json.loads(os.environ['FB_KEY'])
-              cred = credentials.Certificate(key_dict)
-              firebase_admin.initialize_app(cred, {'databaseURL': os.environ['DATABASE_URL']})
+              cred = credentials.Certificate(service_account_info)
+              firebase_admin.initialize_app(cred, {'databaseURL': "https://sarko-43d61-default-rtdb.firebaseio.com/"})
               
               ref = db.reference('subtitled_movies')
               
-              # ١. دۆزینەوەی دواین ئایدی بەکارهاتوو
-              all_movies = ref.get()
+              # دۆزینەوەی کۆتا ئایدی بە شێوازێکی زۆر سووک
+              last_node = ref.order_by_key().limit_to_last(1).get()
               
-              if all_movies:
-                  # وەرگرتنی هەموو ئایدییەکان و گۆڕینیان بۆ ژمارە بۆ دۆزینەوەی گەورەترینیان
-                  existing_ids = [int(k) for k in all_movies.keys() if k.isdigit()]
-                  next_id = max(existing_ids) + 1
+              if last_node:
+                  last_id = int(list(last_node.keys())[0])
+                  next_id = last_id + 1
               else:
-                  next_id = 20035 # ئەگەر داتابەیسەکە بەتاڵ بوو لەمەوە دەست پێ بکات
+                  next_id = 20035
 
-              # ٢. دروستکردنی داتای فیلمەکە
               github_repo = os.environ['GITHUB_REPOSITORY']
               run_number = os.environ['GITHUB_RUN_NUMBER']
               
-              video_data = {
+              new_data = {
                   "badge_text": "FREE",
-                  "description": "چیرۆکی فیلمەکە باس لە کچێکی گەنج دەکات کە لە ڕێگەی ئەپێکی ژوانبەستنەوە کوڕێک دەناسێت کە زۆر سەرنجڕاکێش و بەڕەوشت دەردەکەوێت...",
+                  "description": "چیرۆکی فیلمەکە باس لە کچێکی گەنج دەکات کە لە ڕێگەی ئەپێکی ژوانبەستنەوە کوڕێک دەناسێت...",
                   "genre_id": 6,
                   "id": next_id,
                   "image": "https://raw.githubusercontent.com/Skugiijb546vi/ok/refs/heads/main/good-boy-2025.jpg",
@@ -77,17 +85,16 @@ jobs:
                   "subtitleArabic": "https://raw.githubusercontent.com/Skugiijb546vi/Boolo_ass/refs/heads/main/Good.Boy.2025.1080p.AMZN.WEB-DL.DDP5.1.H.264-English.srt",
                   "subtitleEnglish": "https://raw.githubusercontent.com/Skugiijb546vi/Boolo_ass/refs/heads/main/Good.Boy.2025.1080p.AMZN.WEB-DL.DDP5.1.H.264-English.srt",
                   "subtitleKurdish": "https://raw.githubusercontent.com/Skugiijb546vi/kurdil/refs/heads/main/oi.srt",
-                  "title": f"good boy - ID {next_id}",
+                  "title": f"Good Boy - {next_id}",
                   "translation": "ژێرنووس",
                   "url": f"https://github.com/{github_repo}/releases/download/v{run_number}/final_video.mp4",
                   "views": 28,
                   "year": 2025
               }
 
-              # ٣. پۆستکردن بۆ فایەربەیس
-              ref.child(str(next_id)).set(video_data)
-              print(f"✅ پۆست کرا بۆ ئایدی نوێ: {next_id}")
+              ref.child(str(next_id)).set(new_data)
+              print(f"✅ بە سەرکەوتوویی پۆست کرا بۆ ئایدی: {next_id}")
 
           except Exception as e:
-              print(f"❌ هەڵە: {e}")
+              print(f"❌ هەڵە: {str(e)}")
               exit(1)
